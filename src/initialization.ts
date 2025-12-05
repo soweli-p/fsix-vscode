@@ -123,7 +123,7 @@ async function executeCode(notebook: vscode.NotebookDocument, selection: Selecti
   await applyEdit(notebook.uri, edit);
   await vscode.commands.executeCommand(
         'notebook.cell.execute',
-        { start: index-1, end: index+1}, notebook.uri
+        { start: index, end: index+1}, notebook.uri
     );
 
 }
