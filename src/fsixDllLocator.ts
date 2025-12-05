@@ -17,10 +17,10 @@ async function loadDefaultTool(currentDir?: string): Promise<DefaultToolResult> 
   const downloadTool = await vscode.window.showWarningMessage("FsiX.Daemon was not found. Download it from Nuget?", "Yes (globally)", "Yes (locally)", "No");
   switch (downloadTool) {
     case "Yes (globally)":
-      await runProcess("dotnet", ["tool", "install", "-g", "fsix-daemon"]);
+      await runProcess("dotnet", ["tool", "install", "-g", "FsiX.Daemon"]);
       return await loadDefaultTool(currentDir);
     case "Yes (locally)":
-      await runProcess("dotnet", ["tool", "install", "fsix-daemon"], currentDir);
+      await runProcess("dotnet", ["tool", "install", "FsiX.Daemon"], currentDir);
       return await loadDefaultTool(currentDir);
     default: 
       return;
@@ -36,7 +36,7 @@ async function localToolExists(currentDir?: string) {
     await access(manifestPath);
     const rawContents = await readFile(manifestPath, "utf8");
     const contents = JSON.parse(rawContents);
-    return contents?.tools?.["fsix-daemon"] !== undefined;
+    return contents?.tools?.["fsix.daemon"] !== undefined;
 
   }
   catch {
