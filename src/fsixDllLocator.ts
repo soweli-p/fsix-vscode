@@ -27,7 +27,8 @@ async function loadDefaultTool(currentDir?: string): Promise<DefaultToolResult> 
   }
 }
 function globalToolExists() {
-  const toolDir = path.join(os.homedir(), ".dotnet", "tools", "fsix-daemon");
+  const daemonBinary = os.platform() == 'win32' ? "fsix-daemon.exe" : 'fsix-daemon';
+  const toolDir = path.join(os.homedir(), ".dotnet", "tools", daemonBinary);
   return access(toolDir).then(() => true).catch(() => false);
 }
 async function localToolExists(currentDir?: string) {
