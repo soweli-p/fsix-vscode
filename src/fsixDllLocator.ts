@@ -32,17 +32,22 @@ function globalToolExists() {
   return access(toolDir).then(() => true).catch(() => false);
 }
 async function localToolExists(currentDir?: string) {
-  const manifestPath = path.join(currentDir ?? process.cwd(), "dotnet-tools.json");
-  try {
-    await access(manifestPath);
-    const rawContents = await readFile(manifestPath, "utf8");
-    const contents = JSON.parse(rawContents);
-    return contents?.tools?.["fsix.daemon"] !== undefined;
+  async function localToolExists(manifestPath: string) {
+    try {
+      await access(manifestPath);
+      const rawContents = await readFile(manifestPath, "utf8");
+      const contents = JSON.parse(rawContents);
+      return contents?.tools?.["fsix.daemon"] !== undefined;
 
+    }
+    catch {
+      return false;
+    }
   }
-  catch {
-    return false;
-  }
+  currentDir ??= process.cwd();
+  const manifestPathA = path.join(currentDir, "dotnet-tools.json");
+  const manifestPathB = path.join(currentDir, ".config", "dotnet-tools.json");
+  return await localToolExists(manifestPathA) || await localToolExists(manifestPathB);
 }
 
 
