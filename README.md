@@ -1,71 +1,41 @@
-# fsix-fsharp README
+# FsiX-VSCode
 
-This is the README for your extension "fsix-fsharp". After writing up a brief description, we recommend including the following sections.
+Proper REPL support for F# in VS Code! Uses [FsiX](https://github.com/soweli-p/FsiX) as backend.
+
+[image]
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
 
-For example if there is an image subfolder under your extension project workspace:
+You can create either VS Code's repl window, or saveable notebook window. Both of them, support these features:
 
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+ - Autocompletion, syntax and error highlightning right in the input box. All of these features use your current REPL's state as a context.
+ - `.fsproj` and `.sln`/`.slnx` support.
+ - Hot reloading! If you havent changed type signature of your functions, there is no need to recompile your code, relaunch or reevaluate everything - FsiX will patch even already running code.
+ - Inline Async, Task and any other computation expressions. FsiX will rewrite code like `let! res = doSmthAsync()` into synchronous code, so debugging async code is way easier now.
 
 ## Requirements
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+- You need .NET 10.0 SDK installed.
+- Extension also needs [FsiX.Daemon](https://github.com/soweli-p/FsiX/pkgs/nuget/FsiX.Daemon), but it will try to install it automatically.
 
 ## Extension Settings
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+Currently there is only one setting:
 
-For example:
-
-This extension contributes the following settings:
-
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+* `fsixNotebook.settings.fsixCommand`: Provide custom command to run FsiX.
 
 ## Known Issues
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+- Inline async expressions are marked as errors by intellisense. Will be fixed soon!
+- Even if extension gives fsix context regarding currently openned file, auto-opening of modules is still not perfect.
 
 ## Release Notes
 
-Users appreciate release notes as you update your extension.
+### 0.1.0
 
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
+Initial release.
 
 ---
-
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
 
 **Enjoy!**

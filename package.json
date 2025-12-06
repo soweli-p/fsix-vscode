@@ -1,6 +1,7 @@
 {
-  "name": "soweliP.fsixNotebook",
-  "displayName": "fsixNotebook",
+  "name": "fsixNotebook",
+  "publisher": "soweliP",
+  "displayName": "FsiX REPL",
   "description": "FsiX REPL support for VsCode",
   "version": "0.0.1",
   "engines": {
@@ -47,11 +48,13 @@
         "command": "fsixNotebook.sendToNotebook",
         "title": "Send selection to FsiX Notebook"
       },
-      { "command": "fsixNotebook.cell.evalWithReload",
+      {
+        "command": "fsixNotebook.cell.evalWithReload",
         "title": "Evalauate current FsiX cell with enabled hot reloading",
         "icon": "$(debug-alt)"
       },
-      { "command": "fsixNotebook.cell.evalWithoutReload",
+      {
+        "command": "fsixNotebook.cell.evalWithoutReload",
         "title": "Evalauate current FsiX cell with disabled hot reloading",
         "icon": "$(notebook-execute)"
       }
@@ -65,32 +68,29 @@
     ],
     "menus": {
       "editor/context": [
-              {
-                "command": "fsixNotebook.sendToRepl",
-                "when": "resourceLangId == fsharp",
-                "group": "1_run@0"
-
-              },
-              {
-                "command": "fsixNotebook.sendToNotebook",
-                "when": "resourceLangId == fsharp",
-                "group": "1_run@0"
-              }
+        {
+          "command": "fsixNotebook.sendToRepl",
+          "when": "resourceLangId == fsharp",
+          "group": "1_run@0"
+        },
+        {
+          "command": "fsixNotebook.sendToNotebook",
+          "when": "resourceLangId == fsharp",
+          "group": "1_run@0"
+        }
       ],
       "notebook/cell/execute": [
-              {
-                "command": "fsixNotebook.cell.evalWithReload",
-                "when": "notebookType == fsix-notebook && notebookCellType == code",
-                "group": "1_run@0"
-
-              },
-              {
-                "command": "fsixNotebook.cell.evalWithoutReload",
-                "when": "notebookType == fsix-notebook && notebookCellType == code",
-                "group": "1_run@1"
-
-              }
-            ],
+        {
+          "command": "fsixNotebook.cell.evalWithReload",
+          "when": "notebookType == fsix-notebook && notebookCellType == code",
+          "group": "1_run@0"
+        },
+        {
+          "command": "fsixNotebook.cell.evalWithoutReload",
+          "when": "notebookType == fsix-notebook && notebookCellType == code",
+          "group": "1_run@1"
+        }
+      ],
       "notebook/cell/title": [
         {
           "command": "fsixNotebook.cell.evalWithoutReload",
@@ -103,18 +103,18 @@
           "group": "inline/cell@1"
         }
       ],
-    "interactive/cell/title": [
-            {
-              "command": "fsixNotebook.cell.evalWithoutReload",
-              "when": "notebookKetnel == soweliP.fsixNotebook/fsix-notebook-interactive-id",
-              "group": "inline/cell@0"
-            },
-            {
-              "command": "fsixNotebook.cell.evalWithReload",
-              "when": "notebookKetnel == soweliP.fsixNotebook/fsix-notebook-interactive-id",
-              "group": "inline/cell@1"
-            }
-          ]
+      "interactive/cell/title": [
+        {
+          "command": "fsixNotebook.cell.evalWithoutReload",
+          "when": "notebookKetnel == soweliP.fsixNotebook/fsix-notebook-interactive-id",
+          "group": "inline/cell@0"
+        },
+        {
+          "command": "fsixNotebook.cell.evalWithReload",
+          "when": "notebookKetnel == soweliP.fsixNotebook/fsix-notebook-interactive-id",
+          "group": "inline/cell@1"
+        }
+      ]
     },
     "notebooks": [
       {
@@ -136,13 +136,17 @@
     "lint": "eslint src",
     "test": "vscode-test"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/soweli-p/fsix-vscode"
+  },
   "dependencies": {
     "vscode-jsonrpc": "^8.2.1"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "^22.19.1",
-    "@types/vscode": "^1.103.0",
+    "@types/vscode": "^1.102.0",
     "@typescript-eslint/eslint-plugin": "^8.39.0",
     "@typescript-eslint/parser": "^8.39.0",
     "@vscode/test-cli": "^0.0.11",
