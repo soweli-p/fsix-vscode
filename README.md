@@ -2,7 +2,7 @@
 
 Proper REPL support for F# in VS Code! Uses [FsiX](https://github.com/soweli-p/FsiX) as backend.
 
-[image]
+<img width="1920" height="1048" alt="Screenshot From 2025-12-06 16-22-31" src="https://github.com/user-attachments/assets/d65db40f-67c2-4b15-a629-80e4f98462af" />
 
 ## Features
 
