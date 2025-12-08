@@ -10,6 +10,7 @@ export function registerFsixNotebooks(context: vscode.ExtensionContext) {
   const replCore = new FsiXNotebookCore(true);
   context.subscriptions.push(notebookCore);
   context.subscriptions.push(replCore);
+  vscode.workspace.onDidCloseNotebookDocument(fsix.dropConnection);
 
 
   const execCell = async (cell: vscode.NotebookCell, args: any) => {
@@ -33,9 +34,13 @@ export class FsiXNotebookCore {
   private readonly _controller: vscode.NotebookController;
   private _executionOrder = 0;
 
+  readonly isInteractive: boolean;
+  readonly ctsMap: Record<string, vscode.CancellationTokenSource> = {}
+
   constructor(isInteractive?: boolean) {
     this.notebookType = isInteractive ? 'interactive' : 'fsix-notebook';
     this.controllerId = isInteractive ? 'fsix-notebook-interactive-id' : 'fsix-notebook-id';
+    this.isInteractive = isInteractive ?? false;
     this._controller = vscode.notebooks.createNotebookController(
       this.controllerId,
       this.notebookType,
@@ -44,6 +49,16 @@ export class FsiXNotebookCore {
 
     this._controller.supportedLanguages = this.supportedLanguages;
     this._controller.supportsExecutionOrder = true;
+    if (isInteractive) {
+      this._controller.interruptHandler = (n: vscode.NotebookDocument) => {
+        this.ctsMap[n.uri.path]?.cancel();
+      };
+      this._controller.onDidChangeSelectedNotebooks(e => {
+        if(e.selected) {
+          this.ctsMap[e.notebook.uri.path] = new vscode.CancellationTokenSource();
+        } 
+      })
+    }
     this._controller.executeHandler = this._execute.bind(this);
   }
 
@@ -64,7 +79,7 @@ export class FsiXNotebookCore {
     execution.start(Date.now());
 
     if (cell.index === 0) {
-        const initCellResult = await fsix.executeInitCell(cell, execution);
+        const initCellResult = await fsix.executeInitCell(cell, execution, this.ctsMap[notebook.uri.path]?.token);
         switch (initCellResult.case) {
           case 'ok': 
             fsix.assignConnection(notebook, initCellResult.data);
@@ -89,7 +104,7 @@ export class FsiXNotebookCore {
     if(connection === undefined || !connection.isRunning()) {
       const initCell = cell.notebook.cellAt(0);
       logToExecution("Initializing FsiX first...", false);
-      const connectionResult = await fsix.executeInitCell(initCell, execution);
+      const connectionResult = await fsix.executeInitCell(initCell, execution, this.ctsMap[notebook.uri.path]?.token);
       switch (connectionResult.case) {
         case 'ok': 
           connection = connectionResult.data;
@@ -101,7 +116,7 @@ export class FsiXNotebookCore {
       }
     }
 
-    return await fsix.executeRegularCell(connection, cell, execution, args);
+    return await fsix.executeRegularCell(connection, cell, execution, args, this.ctsMap[notebook.uri.path]?.token);
 }
 
   public dispose() {}

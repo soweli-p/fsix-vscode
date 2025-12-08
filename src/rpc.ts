@@ -1,6 +1,8 @@
 import * as rpc from 'vscode-jsonrpc/node';
 import * as cp from 'child_process';
 
+import * as net from 'net';
+
 export type EvalRequest = {
   code: string
   args: any
@@ -70,17 +72,29 @@ export type InitFailure =
 
 
 export type FsiXConnection = {
-  eval: (request: EvalRequest) => (ct: rpc.CancellationToken) => Promise<EvalResult>
+  eval: (request: EvalRequest, ct: rpc.CancellationToken) => Promise<EvalResult>
   getCompletions: (text: string, caret: number, word: string) => Promise<CompletionItem[]>
   getDiagnostics: (text: string) => Promise<Diagnostic[]>,
-  isRunning: () => boolean
+  isRunning: () => boolean,
+  dispose: () => void
 }
-export function mkRpcConnection(process: cp.ChildProcessWithoutNullStreams, onLog: (n: LogNotification) => void) {
-  const fsixConnection = rpc.createMessageConnection(
-    new rpc.StreamMessageReader(process.stdout),
-    new rpc.StreamMessageWriter(process.stdin));
 
-  const evalRt = new rpc.RequestType<EvalRequest, any, EvalResult>('eval');
+export async function mkRpcConnection(process: cp.ChildProcessWithoutNullStreams, onLog: (n: LogNotification) => void) {
+
+  const m = await new Promise<string>((accept, reject) => {
+    process.stdout.on('data', data => accept(data.toString()));
+    process.stderr.on('data', reject);
+  });
+  const [_, ip, port] = m.trim().replace(/\s/g, "").split(":");
+  const socket = net.connect(Number(port), ip);
+  socket.setNoDelay(true);
+  process.on('exit', () => socket.destroy());
+    
+  const fsixConnection = rpc.createMessageConnection(
+    new rpc.StreamMessageReader(socket),
+    new rpc.StreamMessageWriter(socket));
+
+  const evalRt = new rpc.RequestType1<EvalRequest, any, EvalResult>('eval');
   const completionsRt = new rpc.RequestType3<string, number, string, any, EvalResult>('autocomplete');
   const diagnosticsRt = new rpc.RequestType1<string, any, Diagnostic[]>('diagnostics');
 
@@ -91,15 +105,19 @@ export function mkRpcConnection(process: cp.ChildProcessWithoutNullStreams, onLo
 
   let isRunning = true;
   const manager = {
-    eval: (request: EvalRequest) => (ct: rpc.CancellationToken) => fsixConnection.sendRequest(evalRt, request, ct),
+    eval: (request: EvalRequest, ct: rpc.CancellationToken) => fsixConnection.sendRequest(evalRt, request, ct),
     getCompletions: (text: string, caret: number, word: string) => fsixConnection.sendRequest(completionsRt, text, caret, word, rpc.CancellationToken.None),
     getDiagnostics: (text: string) => fsixConnection.sendRequest(diagnosticsRt, text),
-    isRunning: () => isRunning
+    isRunning: () => isRunning,
+    dispose: () => {
+        socket.destroy();
+        process.kill();
+      }
   };
 
 
   fsixConnection.listen();
-  return new Promise<Result<FsiXConnection, InitFailure>>(accept => {
+  return await new Promise<Result<FsiXConnection, InitFailure>>(accept => {
     fsixConnection.onNotification(initRt, initResult => {
       switch (initResult.case) {
         case 'ok': 

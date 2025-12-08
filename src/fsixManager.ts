@@ -7,9 +7,9 @@ import { runFsiXDaemonProcess } from './fsixDllLocator';
 export type FsiXConnection = fsixRpc.FsiXConnection
 
 type NotebookUri = string
-let _connections: Record<NotebookUri, FsiXConnection> = {};
+let _connections: Record<NotebookUri, FsiXConnection | undefined> = {};
 
-function getInteractiveNotebookId(notebook: vscode.NotebookDocument) {
+function getInteractiveNotebookId(notebook: vscode.NotebookDocument, showFail: boolean) {
   const path = notebook.uri.path;
   const m = path.match(/-(\d+)\.interactive$/i);
   if(m && m.length > 1) {
@@ -23,7 +23,7 @@ function getInteractiveNotebookId(notebook: vscode.NotebookDocument) {
 export function assignConnection(notebook: vscode.NotebookDocument, connection: FsiXConnection) {
   const path = notebook.uri.path;
   if(path.endsWith('.interactive')) {
-    const interactiveId = getInteractiveNotebookId(notebook);
+    const interactiveId = getInteractiveNotebookId(notebook, true);
     if(interactiveId) {
       _connections[interactiveId] = connection;
     }
@@ -33,10 +33,24 @@ export function assignConnection(notebook: vscode.NotebookDocument, connection: 
   }
 }
 
+export function dropConnection(notebook: vscode.NotebookDocument) {
+  const path = notebook.uri.path;
+  if(path.endsWith('.interactive')) {
+    const interactiveId = getInteractiveNotebookId(notebook, false);
+    if(interactiveId) {
+      _connections[interactiveId]?.dispose();
+      _connections[interactiveId] = undefined;
+    }
+  } else {
+    _connections[path]?.dispose();
+    _connections[path] = undefined;
+  }
+}
+
 export function getConnectionForNotebook(notebook: vscode.NotebookDocument): FsiXConnection | undefined {
   const path = notebook.uri.path;
   if(path.endsWith('.interactive')) {
-    const interactiveId = getInteractiveNotebookId(notebook);
+    const interactiveId = getInteractiveNotebookId(notebook, true);
     if(interactiveId) {
       return _connections[interactiveId];
     }
@@ -61,7 +75,9 @@ export function getConnectionForDocument(document: vscode.TextDocument): FsiXCon
 
 
 
-export async function executeInitCell(initCell: vscode.NotebookCell, execution: vscode.NotebookCellExecution): Promise<Result<FsiXConnection, InitFailure>> {
+export async function executeInitCell(initCell: vscode.NotebookCell,
+        execution: vscode.NotebookCellExecution,
+        token?: vscode.CancellationToken): Promise<Result<FsiXConnection, InitFailure>> {
 
   const logToExecution = utils.logToExecution (initCell) (execution);
   const logError = utils.logError (initCell) (execution);
@@ -73,12 +89,13 @@ export async function executeInitCell(initCell: vscode.NotebookCell, execution: 
   let wasInitialized = false;
   try {
 
-    const fsiXProcess = await runFsiXDaemonProcess(initCell.document.getText());
+    const fsiXProcess = await runFsiXDaemonProcess(initCell.document.getText(), token ?? execution.token);
     if(!fsiXProcess) {
       return {case: 'error', error: {reason: 'other', error: new Error("Not able to locate fsix-daemon")}};
     }
-    const channel = vscode.window.createOutputChannel("FsiX", {log: true});
-    fsiXProcess.stderr.on('data', data => channel.error(data.toString()));
+    const channel = vscode.window.createOutputChannel("FsiX");
+    fsiXProcess.stderr.on('data', data => channel.append(data.toString()));
+    fsiXProcess.stdout.on('data', data => channel.append(data.toString()));
 
 
 
@@ -88,13 +105,13 @@ export async function executeInitCell(initCell: vscode.NotebookCell, execution: 
       }
       switch (level) {
         case 'Info':
-          channel.info(message);
+          channel.append(message);
         case 'Debug':
-          channel.debug(message);
+          channel.append(message);
         case 'Error':
-          channel.error(message);
+          channel.append(message);
         case 'Warning':
-          channel.warn(message);
+          channel.append(message);
       }
     });
 
@@ -129,7 +146,10 @@ export async function executeInitCell(initCell: vscode.NotebookCell, execution: 
   }
 }
 
-export async function executeRegularCell(connection: FsiXConnection, cell: vscode.NotebookCell, execution: vscode.NotebookCellExecution, args: Record<string, any>) {
+export async function executeRegularCell(connection: FsiXConnection,
+        cell: vscode.NotebookCell,
+        execution: vscode.NotebookCellExecution, 
+        args: Record<string, any>, ct?: vscode.CancellationToken) {
   const logToExecution = utils.logToExecution (cell) (execution);
   const logError = utils.logError (cell) (execution);
   execution.clearOutput(cell);
@@ -144,37 +164,39 @@ export async function executeRegularCell(connection: FsiXConnection, cell: vscod
 
 
   try {
-    const response = await connection.eval({code: cell.document.getText(), args: combinedArgs}) (execution.token);
-      for (let d of response.diagnostics) {
-        logToExecution(d.message, d.severity === 'Error');
-      }
 
-      let isSuccess = true;
-      const evalRes = response.evaluationResult;
-      if(response.metadata.stdout !== undefined && response.metadata.stdout !== "") {
-        logToExecution (response.metadata.stdout, evalRes.case === 'error');
-      }
-      const outputs = [];
-      switch (evalRes.case) {
-        case 'ok':
-          outputs.push(vscode.NotebookCellOutputItem.text(evalRes.data, "text/x-fsharp"));
-          isSuccess = true;
-          break;
-        case 'error':
-          outputs.push(vscode.NotebookCellOutputItem.error(fsixRpc.csToJsError(evalRes.error)));
-          isSuccess = false;
-          break;
-      }
+    const response = await connection.eval({code: cell.document.getText(), args: combinedArgs}, ct ?? execution.token);
+    
+    for (let d of response.diagnostics) {
+      logToExecution(d.message, d.severity === 'Error');
+    }
 
-      outputs.push(vscode.NotebookCellOutputItem.json(response));
+    let isSuccess = true;
+    const evalRes = response.evaluationResult;
+    if(response.metadata.stdout !== undefined && response.metadata.stdout !== "") {
+      logToExecution (response.metadata.stdout, evalRes.case === 'error');
+    }
+    const outputs = [];
+    switch (evalRes.case) {
+      case 'ok':
+        outputs.push(vscode.NotebookCellOutputItem.text(evalRes.data, "text/x-fsharp"));
+        isSuccess = true;
+        break;
+      case 'error':
+        outputs.push(vscode.NotebookCellOutputItem.error(fsixRpc.csToJsError(evalRes.error)));
+        isSuccess = false;
+        break;
+    }
 
-      execution.appendOutput(new vscode.NotebookCellOutput(outputs));
-      if(response.metadata.reloadedMethods !== undefined) {
-        for(let method in response.metadata.reloadedMethods) {
-          logToExecution(`Method ${method} was updated`);
-        }
+    outputs.push(vscode.NotebookCellOutputItem.json(response));
+
+    execution.appendOutput(new vscode.NotebookCellOutput(outputs));
+    if(response.metadata.reloadedMethods !== undefined) {
+      for(let method in response.metadata.reloadedMethods) {
+        logToExecution(`Method ${method} was updated`);
       }
-      return isSuccess;
+    }
+    return isSuccess;
   }
   catch (err: any) {
     logError(err);

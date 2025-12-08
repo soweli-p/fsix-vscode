@@ -5,8 +5,12 @@ import * as path from "path";
 import * as os from "os";
 
 type DefaultToolResult = 'local' | 'global' | undefined;
-const runProcess = (name: string, args: string[], cwd?: string) => new Promise<number>(accept => spawn(name, args, {cwd}).on('exit', n => accept(n ?? -1)));
-async function loadDefaultTool(currentDir?: string): Promise<DefaultToolResult> {
+const runProcess = (name: string, args: string[], token: vscode.CancellationToken, cwd?: string) => 
+  new Promise<number>((accept, reject) => {
+    spawn(name, args, {cwd}).on('exit', n => accept(n ?? -1));
+    token.onCancellationRequested(() => reject());
+  });
+async function loadDefaultTool(token: vscode.CancellationToken, currentDir?: string): Promise<DefaultToolResult> {
   if (await globalToolExists()) {
     return 'global';
   }
@@ -17,11 +21,11 @@ async function loadDefaultTool(currentDir?: string): Promise<DefaultToolResult> 
   const downloadTool = await vscode.window.showWarningMessage("FsiX.Daemon was not found. Download it from Nuget?", "Yes (globally)", "Yes (locally)", "No");
   switch (downloadTool) {
     case "Yes (globally)":
-      await runProcess("dotnet", ["tool", "install", "-g", "FsiX.Daemon"]);
-      return await loadDefaultTool(currentDir);
+      await runProcess("dotnet", ["tool", "install", "-g", "FsiX.Daemon"], token);
+      return await loadDefaultTool(token, currentDir);
     case "Yes (locally)":
-      await runProcess("dotnet", ["tool", "install", "FsiX.Daemon"], currentDir);
-      return await loadDefaultTool(currentDir);
+      await runProcess("dotnet", ["tool", "install", "FsiX.Daemon"], token, currentDir);
+      return await loadDefaultTool(token, currentDir);
     default: 
       return;
   }
@@ -51,12 +55,12 @@ async function localToolExists(currentDir?: string) {
 }
 
 
-export async function runFsiXDaemonProcess(fsixInitLine: string) {
+export async function runFsiXDaemonProcess(fsixInitLine: string, ct: vscode.CancellationToken) {
   const projectArgs = fsixInitLine.split(' ').filter((arg, i) => i !== 0 && arg !== '');
   const currentDir = vscode.workspace.workspaceFolders?.[0]?.uri?.fsPath;
   const commandString = vscode.workspace.getConfiguration('fsixNotebook.settings').get<string>('fsixCommand') ?? 'default';
   if (commandString === 'default') {
-    const toolType = await loadDefaultTool(currentDir);
+    const toolType = await loadDefaultTool(ct, currentDir);
     switch(toolType) {
       case 'local':
         return spawn("dotnet", ["tool", "run", "fsix-daemon", ...projectArgs], {cwd: currentDir});
