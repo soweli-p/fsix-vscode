@@ -30,12 +30,6 @@ Currently there is only one setting:
 - Inline async expressions are marked as errors by intellisense. Will be fixed soon!
 - Even if extension gives fsix context regarding currently openned file, auto-opening of modules is still not perfect.
 
-## Release Notes
-
-### 0.1.0
-
-Initial release.
-
 ---
 
 **Enjoy!**
