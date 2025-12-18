@@ -3,7 +3,7 @@
   "publisher": "soweliP",
   "displayName": "FsiX REPL",
   "description": "FsiX REPL support for VsCode",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "engines": {
     "vscode": "^1.102.0"
   },

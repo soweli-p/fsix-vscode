@@ -58,6 +58,12 @@ async function localToolExists(currentDir?: string) {
 export async function runFsiXDaemonProcess(fsixInitLine: string, ct: vscode.CancellationToken) {
   const projectArgs = fsixInitLine.split(' ').filter((arg, i) => i !== 0 && arg !== '');
   const currentDir = vscode.workspace.workspaceFolders?.[0]?.uri?.fsPath;
+  if(projectArgs.length > 0) {
+    const last = projectArgs[projectArgs.length - 1];
+    if(last.endsWith(".sln") || last.endsWith(".slnx") || last.endsWith(".fsproj")) {
+      await runProcess("dotnet", ["build", last], ct);
+    }
+  }
   const commandString = vscode.workspace.getConfiguration('fsixNotebook.settings').get<string>('fsixCommand') ?? 'default';
   if (commandString === 'default') {
     const toolType = await loadDefaultTool(ct, currentDir);
